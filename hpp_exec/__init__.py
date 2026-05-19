@@ -17,11 +17,7 @@ Example:
     )
 """
 
-from hpp_exec.gripper import (
-    GraspTransition,
-    extract_path_grasp_transitions,
-    segments_from_graph,
-)
+from hpp_exec.graph_segments import format_segments, print_segments, segments_from_graph
 from hpp_exec.segments import Segment
 
 __version__ = "0.1.0"
@@ -63,6 +59,6 @@ __all__ = [
     "configs_to_joint_trajectory",
     "extract_joint_config",
     "segments_from_graph",
-    "extract_path_grasp_transitions",
-    "GraspTransition",
+    "format_segments",
+    "print_segments",
 ]

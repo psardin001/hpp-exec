@@ -11,7 +11,7 @@ You write your HPP planning script using `pyhpp` directly, then use `hpp_exec` t
 The official tutorials for this package are in [hpp-tutorial](https://github.com/humanoid-path-planner/hpp-tutorial):
 
 - **Tutorial 6**: Plan a simple arm motion and execute on Gazebo via `send_trajectory()`
-- **Tutorial 7**: Pick-and-place with gripper actions using `segments_from_graph()` and `execute_segments()`
+- **Tutorial 7**: Pick-and-place with graph segments, gripper actions, and `execute_segments()`
 
 ## Documentation
 
@@ -80,6 +80,7 @@ cd ~/devel/src && make all
 from hpp_exec import (
     Segment,
     execute_segments,
+    print_segments,
     send_trajectory,
     segments_from_graph,
 )
@@ -92,12 +93,14 @@ send_trajectory(
     controller_topic="...", # FollowJointTrajectory action topic
 )
 
-# Split a manipulation path into executable pieces.
-configs, times, segments = segments_from_graph(
-    path, graph,
-    on_grasp=close_gripper,
-    on_release=open_gripper,
-)
+# Expose the HPP graph segments.
+configs, times, segments = segments_from_graph(path, graph)
+print_segments(segments)
+
+# Add actions exactly where this manipulation problem needs them.
+segments[1].pre_actions.append(close_gripper)
+segments[3].pre_actions.append(open_gripper)
+
 execute_segments(
     segments,
     configs,
@@ -109,21 +112,17 @@ execute_segments(
 See the generated Doxygen documentation for `send_trajectory_async()`,
 `configs_to_joint_trajectory()`, and other lower-level helpers.
 
-## Examples
+## Tutorials
 
-Examples use the FR3 robot in Gazebo simulation or real hardware.
+The maintained end-to-end examples live in `hpp_tutorial`.
 
 ```bash
-# Terminal 1: Launch Gazebo with FR3
-./run.sh
-./hpp-exec/scripts/launch_gazebo_gripper.sh
-
-# Terminal 2: Run example
-docker exec -it hpp-exec bash
-python3 ~/devel/hpp-exec/examples/simple_trajectory.py
+cd ~/devel/src/hpp_tutorial/tutorial_6
+python -i init.py
 ```
 
-See [examples/README.md](examples/README.md) for all examples.
+See tutorial 6 for simple arm execution and tutorial 7 for pick-and-place with
+graph segments.
 
 ## Structure
 
@@ -134,10 +133,9 @@ hpp-exec/
 |   |-- segments.py        # Segment data structure
 |   |-- trajectory_utils.py # HPP config to ROS2 JointTrajectory conversion
 |   |-- ros2_sender.py     # send_trajectory() via FollowJointTrajectory action
-|   `-- gripper.py         # Gripper coordination for manipulation trajectories
-|-- examples/              # Usage examples (Gazebo + real hardware)
+|   `-- graph_segments.py         # Graph segment extraction and display
 |-- scripts/               # Launch scripts for Gazebo
-|-- robots/                # URDF/SRDF for examples
+|-- robots/                # URDF/SRDF assets
 |-- docker/
 |-- Dockerfile
 `-- run.sh
