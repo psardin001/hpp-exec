@@ -1,6 +1,6 @@
-# Gazebo Gripper Test
+# Gazebo Gripper Launch Helper
 
-Test the gripper coordination code with FR3 in Gazebo simulation.
+Launch FR3 with a gripper and ros2_control controllers in Gazebo.
 
 ## Setup
 
@@ -11,30 +11,13 @@ cd ~/devel/hpp-exec
 
 ## Run
 
-### Terminal 1 (inside container): Launch Gazebo
-
 ```bash
 ./hpp-exec/scripts/launch_gazebo_gripper.sh
 ```
 
 Wait until you see "Gazebo + gripper ready!".
 
-### Terminal 2: Run the test
-
-```bash
-docker exec -it hpp-exec bash
-python3 ~/devel/hpp-exec/scripts/test_gripper_gazebo.py
-```
-
-## What you should see
-
-The FR3 robot in Gazebo performs a pick-and-place:
-
-1. Arm moves to pre-grasp pose (~3s)
-2. Arm stops, gripper closes (~1s)
-3. Arm moves to place pose (~4s)
-4. Arm stops, gripper opens (~1s)
-5. Arm retreats to home (~3s)
+Use `hpp_tutorial/tutorial_7` for the pick-and-place execution script.
 
 ## Troubleshooting
 
@@ -46,7 +29,7 @@ ros2 action list
 ```
 
 You should see both `joint_trajectory_controller` and `gripper_controller` active.
-If not, spawn them manually:
+If needed, spawn them manually:
 
 ```bash
 SCRIPT_DIR=$HOME/devel/hpp-exec/scripts
