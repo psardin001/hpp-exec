@@ -7,7 +7,6 @@ import numpy as np
 
 from hpp_exec.segments import Segment
 
-
 _PARAM_EPS = 1e-9
 _STATE_SAMPLE_EPS = 1e-5
 
