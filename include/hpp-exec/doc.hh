@@ -289,6 +289,24 @@
 /// completion, the arm motion will only start once the gripper has
 /// reached the requested state.
 ///
+/// If the action can run while the arm is already travelling, wrap it in
+/// \c BackgroundAction. Append \c start where the action may begin and
+/// \c wait where the plan must synchronize:
+///
+/// \code{.py}
+/// from hpp_exec import BackgroundAction
+///
+/// background_open = BackgroundAction(open_gripper, name="open_gripper")
+/// segments[0].pre_actions.append(background_open.start)
+/// segments[2].pre_actions.append(background_open.wait)
+/// segments[2].pre_actions.append(gripper.close)
+/// \endcode
+///
+/// \c BackgroundAction.start returns immediately after launching the action
+/// in a daemon thread. \c BackgroundAction.wait blocks until that action
+/// reports success. If \c wait is called before \c start, it runs the action
+/// synchronously, which keeps it safe as a blocking fallback.
+///
 /// \subsection hpp_exec_grasps_custom_actions Writing segment actions
 ///
 /// Real grippers, simulated grippers, detachable Gazebo objects, cameras, or
@@ -372,6 +390,8 @@
 /// blocks until completion) and that it returns \c True only on success. An
 /// action returning \c True early - or a fire-and-forget topic publish -
 /// will let the arm move before the gripper has reached its target.
+/// When using \c BackgroundAction, add the corresponding \c wait action
+/// before the segment that requires the completed gripper motion.
 ///
 /// \par segments_from_graph returns a single segment
 /// The HPP path contains a single graph segment. Check the table printed by
@@ -382,6 +402,8 @@
 ///
 /// The package is intentionally small:
 ///
+/// \li \c actions.py defines reusable helpers for segment actions, including
+///     \c BackgroundAction for overlapping a blocking action with arm motion.
 /// \li \c segments.py defines the lightweight \c Segment data structure.
 /// \li \c trajectory_utils.py extracts selected joints from full HPP
 ///     configuration vectors and converts them to a ROS 2

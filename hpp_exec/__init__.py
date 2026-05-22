@@ -17,6 +17,7 @@ Example:
     )
 """
 
+from hpp_exec.actions import BackgroundAction
 from hpp_exec.graph_segments import format_segments, print_segments, segments_from_graph
 from hpp_exec.segments import Segment
 
@@ -55,6 +56,7 @@ __all__ = [
     "send_trajectory",
     "send_trajectory_async",
     "execute_segments",
+    "BackgroundAction",
     "Segment",
     "configs_to_joint_trajectory",
     "extract_joint_config",

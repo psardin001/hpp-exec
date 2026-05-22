@@ -12,6 +12,7 @@ The official tutorials for this package are in [hpp-tutorial](https://github.com
 
 - **Tutorial 6**: Plan a simple arm motion and execute on Gazebo via `send_trajectory()`
 - **Tutorial 7**: Pick-and-place with graph segments, gripper actions, and `execute_segments()`
+- **Tutorial 8**: Pick-and-place while opening the gripper during arm travel
 
 ## Documentation
 
@@ -78,6 +79,7 @@ cd ~/devel/src && make all
 
 ```python
 from hpp_exec import (
+    BackgroundAction,
     Segment,
     execute_segments,
     print_segments,
@@ -101,6 +103,12 @@ print_segments(segments)
 segments[1].pre_actions.append(close_gripper)
 segments[3].pre_actions.append(open_gripper)
 
+# Or overlap a blocking action with the next segment's arm motion.
+background_open = BackgroundAction(open_gripper, name="open_gripper")
+segments[0].pre_actions.append(background_open.start)
+segments[2].pre_actions.append(background_open.wait)
+segments[2].pre_actions.append(close_gripper)
+
 execute_segments(
     segments,
     configs,
@@ -121,8 +129,9 @@ cd ~/devel/src/hpp_tutorial/tutorial_6
 python -i init.py
 ```
 
-See tutorial 6 for simple arm execution and tutorial 7 for pick-and-place with
-graph segments.
+See tutorial 6 for simple arm execution, tutorial 7 for pick-and-place with
+graph segments, and tutorial 8 for overlapping a gripper action with arm
+travel.
 
 ## Structure
 
@@ -130,6 +139,7 @@ graph segments.
 hpp-exec/
 |-- hpp_exec/           # Python package
 |   |-- __init__.py
+|   |-- actions.py         # Reusable helpers for segment actions
 |   |-- segments.py        # Segment data structure
 |   |-- trajectory_utils.py # HPP config to ROS2 JointTrajectory conversion
 |   |-- ros2_sender.py     # send_trajectory() via FollowJointTrajectory action
