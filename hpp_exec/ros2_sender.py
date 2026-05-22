@@ -26,18 +26,46 @@ Example:
 """
 
 import logging
+import threading
+from itertools import count
 from typing import List, Optional
 
 import numpy as np
 import rclpy
 from control_msgs.action import FollowJointTrajectory
 from rclpy.action import ActionClient
+from rclpy.executors import SingleThreadedExecutor
 from rclpy.node import Node
 
+from hpp_exec.actions import BackgroundAction
 from hpp_exec.segments import Segment
 from hpp_exec.trajectory_utils import configs_to_joint_trajectory
 
 logger = logging.getLogger(__name__)
+_NODE_IDS = count()
+_RCLPY_INIT_LOCK = threading.Lock()
+
+
+def _ensure_rclpy_initialized() -> None:
+    if rclpy.ok():
+        return
+
+    with _RCLPY_INIT_LOCK:
+        if not rclpy.ok():
+            rclpy.init()
+
+
+def _action_name(action) -> str:
+    action_owner = getattr(action, "__self__", None)
+    if isinstance(action_owner, BackgroundAction):
+        method_name = getattr(action, "__name__", None) or repr(action)
+        return f"{action_owner.name}.{method_name}"
+
+    return (
+        getattr(action, "__qualname__", None)
+        or getattr(action, "__name__", None)
+        or repr(action)
+    )
 
 
 class _TrajectorySenderNode(Node):
@@ -47,59 +75,68 @@ class _TrajectorySenderNode(Node):
         self,
         controller_topic: str = "/joint_trajectory_controller/follow_joint_trajectory",
     ):
-        super().__init__("hpp_trajectory_sender")
+        super().__init__(f"hpp_trajectory_sender_{next(_NODE_IDS)}")
         self.client = ActionClient(self, FollowJointTrajectory, controller_topic)
         self._result = None
 
     def send_and_wait(self, trajectory, timeout_sec: float = 60.0) -> bool:
         """Send trajectory and wait for execution to complete."""
-        if not self.client.wait_for_server(timeout_sec=10.0):
-            self.get_logger().error("Trajectory controller not available")
-            return False
+        executor = SingleThreadedExecutor()
+        executor.add_node(self)
+        try:
+            if not self.client.wait_for_server(timeout_sec=10.0):
+                self.get_logger().error("Trajectory controller not available")
+                return False
 
-        goal = FollowJointTrajectory.Goal()
-        goal.trajectory = trajectory
+            goal = FollowJointTrajectory.Goal()
+            goal.trajectory = trajectory
 
-        # Compute expected duration from last trajectory point
-        last_point = trajectory.points[-1]
-        duration = (
-            last_point.time_from_start.sec + last_point.time_from_start.nanosec * 1e-9
-        )
-
-        self.get_logger().info(
-            f"Sending trajectory: {len(trajectory.points)} points, "
-            f"{len(trajectory.joint_names)} joints, {duration:.1f}s"
-        )
-
-        future = self.client.send_goal_async(goal)
-        rclpy.spin_until_future_complete(self, future, timeout_sec=10.0)
-
-        goal_handle = future.result()
-        if goal_handle is None or not goal_handle.accepted:
-            self.get_logger().error("Trajectory goal rejected")
-            return False
-
-        self.get_logger().info("Trajectory accepted, executing...")
-
-        # Wait for execution to complete
-        result_future = goal_handle.get_result_async()
-        rclpy.spin_until_future_complete(self, result_future, timeout_sec=timeout_sec)
-
-        result = result_future.result()
-        if result is None:
-            self.get_logger().error("Trajectory execution timed out")
-            return False
-
-        if result.result.error_code != FollowJointTrajectory.Result.SUCCESSFUL:
-            self.get_logger().error(
-                "Trajectory execution failed with error code %d: %s",
-                result.result.error_code,
-                result.result.error_string,
+            # Compute expected duration from last trajectory point
+            last_point = trajectory.points[-1]
+            duration = (
+                last_point.time_from_start.sec
+                + last_point.time_from_start.nanosec * 1e-9
             )
-            return False
 
-        self.get_logger().info("Trajectory execution complete")
-        return True
+            self.get_logger().info(
+                f"Sending trajectory: {len(trajectory.points)} points, "
+                f"{len(trajectory.joint_names)} joints, {duration:.1f}s"
+            )
+
+            future = self.client.send_goal_async(goal)
+            executor.spin_until_future_complete(future, timeout_sec=10.0)
+
+            goal_handle = future.result()
+            if goal_handle is None or not goal_handle.accepted:
+                self.get_logger().error("Trajectory goal rejected")
+                return False
+
+            self.get_logger().info("Trajectory accepted, executing...")
+
+            # Wait for execution to complete
+            result_future = goal_handle.get_result_async()
+            executor.spin_until_future_complete(
+                result_future, timeout_sec=timeout_sec
+            )
+
+            result = result_future.result()
+            if result is None:
+                self.get_logger().error("Trajectory execution timed out")
+                return False
+
+            if result.result.error_code != FollowJointTrajectory.Result.SUCCESSFUL:
+                self.get_logger().error(
+                    "Trajectory execution failed with error code %d: %s",
+                    result.result.error_code,
+                    result.result.error_string,
+                )
+                return False
+
+            self.get_logger().info("Trajectory execution complete")
+            return True
+        finally:
+            executor.remove_node(self)
+            executor.shutdown()
 
 
 def send_trajectory(
@@ -145,9 +182,7 @@ def send_trajectory(
         joint_indices=joint_indices,
     )
 
-    # Initialize ROS2 if needed
-    if not rclpy.ok():
-        rclpy.init()
+    _ensure_rclpy_initialized()
 
     node = _TrajectorySenderNode(controller_topic)
     try:
@@ -179,8 +214,7 @@ def send_trajectory_async(
         joint_indices=joint_indices,
     )
 
-    if not rclpy.ok():
-        rclpy.init()
+    _ensure_rclpy_initialized()
 
     node = _TrajectorySenderNode(controller_topic)
 
@@ -231,9 +265,7 @@ def execute_segments(
     for i, segment in enumerate(segments):
         # 1. Pre-actions
         for action in segment.pre_actions:
-            action_name = getattr(action, "__name__", None) or getattr(
-                action, "__qualname__", repr(action)
-            )
+            action_name = _action_name(action)
             logger.info("Segment %d: running pre-action '%s'", i, action_name)
             if not action():
                 logger.error("Segment %d: pre-action '%s' failed", i, action_name)
@@ -271,9 +303,7 @@ def execute_segments(
 
         # 3. Post-actions
         for action in segment.post_actions:
-            action_name = getattr(action, "__name__", None) or getattr(
-                action, "__qualname__", repr(action)
-            )
+            action_name = _action_name(action)
             logger.info("Segment %d: running post-action '%s'", i, action_name)
             if not action():
                 logger.error("Segment %d: post-action '%s' failed", i, action_name)
