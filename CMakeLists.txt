@@ -50,6 +50,7 @@ endif()
 
 # Install Python package
 python_install_on_site("hpp_exec" "__init__.py")
+python_install_on_site("hpp_exec" "actions.py")
 python_install_on_site("hpp_exec" "trajectory_utils.py")
 python_install_on_site("hpp_exec" "ros2_sender.py")
 python_install_on_site("hpp_exec" "graph_segments.py")
