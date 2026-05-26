@@ -115,9 +115,7 @@ class _TrajectorySenderNode(Node):
 
             # Wait for execution to complete
             result_future = goal_handle.get_result_async()
-            executor.spin_until_future_complete(
-                result_future, timeout_sec=timeout_sec
-            )
+            executor.spin_until_future_complete(result_future, timeout_sec=timeout_sec)
 
             result = result_future.result()
             if result is None:
