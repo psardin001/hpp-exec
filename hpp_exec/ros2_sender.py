@@ -36,6 +36,7 @@ from control_msgs.action import FollowJointTrajectory
 from rclpy.action import ActionClient
 from rclpy.executors import SingleThreadedExecutor
 from rclpy.node import Node
+from rclpy.type_support import check_for_type_support
 
 from hpp_exec.actions import BackgroundAction
 from hpp_exec.segments import Segment
@@ -44,6 +45,7 @@ from hpp_exec.trajectory_utils import configs_to_joint_trajectory
 logger = logging.getLogger(__name__)
 _NODE_IDS = count()
 _RCLPY_INIT_LOCK = threading.Lock()
+_TYPE_SUPPORT_LOCK = threading.Lock()
 
 
 def _ensure_rclpy_initialized() -> None:
@@ -53,6 +55,11 @@ def _ensure_rclpy_initialized() -> None:
     with _RCLPY_INIT_LOCK:
         if not rclpy.ok():
             rclpy.init()
+
+
+def _ensure_trajectory_type_support() -> None:
+    with _TYPE_SUPPORT_LOCK:
+        check_for_type_support(FollowJointTrajectory)
 
 
 def _action_name(action) -> str:
@@ -76,6 +83,7 @@ class _TrajectorySenderNode(Node):
         controller_topic: str = "/joint_trajectory_controller/follow_joint_trajectory",
     ):
         super().__init__(f"hpp_trajectory_sender_{next(_NODE_IDS)}")
+        _ensure_trajectory_type_support()
         self.client = ActionClient(self, FollowJointTrajectory, controller_topic)
         self._result = None
 
