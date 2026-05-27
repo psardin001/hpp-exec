@@ -148,6 +148,7 @@ def test_format_segments_shows_timing_state_and_actions():
     table = format_segments(segments)
 
     assert "#  time" in table
+    assert "nominal" not in table
     assert "4.800000 -> 5.200000" in table
     assert "grasp stage | f_12" in table
     assert "free -> gripper grasps box/handle" in table

@@ -157,7 +157,6 @@ def format_segments(segments: Iterable[Segment]) -> str:
                 f"{segment.start_time:.6f} -> {segment.end_time:.6f}",
                 f"{segment.duration:.6f}",
                 segment.transition_name or "-",
-                state_pair(segment.state_before, segment.state_after),
                 state_pair(
                     segment.actual_state_before,
                     segment.actual_state_after,
@@ -174,7 +173,6 @@ def format_segments(segments: Iterable[Segment]) -> str:
         "time",
         "duration",
         "transition",
-        "nominal",
         "observed",
         "pre/post",
     ]
