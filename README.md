@@ -11,8 +11,8 @@ You write your HPP planning script using `pyhpp` directly, then use `hpp_exec` t
 The official tutorials for this package are in [hpp-tutorial](https://github.com/humanoid-path-planner/hpp-tutorial):
 
 - **Tutorial 6**: Plan a simple arm motion and execute on Gazebo via `send_trajectory()`
-- **Tutorial 7**: Pick-and-place with graph segments, gripper actions, and `execute_segments()`
-- **Tutorial 8**: Pick-and-place while opening the gripper during arm travel
+- **Tutorial 7**: Pick and place with gripper, introducing pre and post-actions
+- **Tutorial 8**: A more efficient way to assign pre or post-actions
 
 ## Documentation
 
@@ -152,9 +152,9 @@ cd ~/devel/src/hpp_tutorial/tutorial_6
 python -i init.py
 ```
 
-See tutorial 6 for simple arm execution, tutorial 7 for pick-and-place with
-graph segments, and tutorial 8 for overlapping a gripper action with arm
-travel.
+See tutorial 6 for simple arm execution, tutorial 7 for pick and place with
+gripper, introducing pre and post-actions, and tutorial 8 for a more efficient
+way to assign pre or post-actions.
 
 ## Structure
 
