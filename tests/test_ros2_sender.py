@@ -20,6 +20,14 @@ def _action(calls, name):
     return lambda: calls.append(name) or True
 
 
+class MockTransition:
+    def __init__(self, name):
+        self._name = name
+
+    def name(self):
+        return self._name
+
+
 def test_trajectory_type_support_import_is_serialized(monkeypatch):
     ros2_sender = _ros2_sender()
 
@@ -83,6 +91,44 @@ def test_execute_segments_runs_single_transition_actions(monkeypatch):
     )
 
     assert calls == ["trajectory", "pre-grasp", "trajectory", "post-grasp"]
+
+
+def test_execute_segments_accepts_transition_objects_in_action_maps(monkeypatch):
+    ros2_sender = _ros2_sender()
+
+    calls = []
+    monkeypatch.setattr(
+        ros2_sender,
+        "send_trajectory",
+        lambda *args, **kwargs: calls.append("trajectory") or True,
+    )
+
+    segments = [
+        ros2_sender.Segment(0, 2, transition_name="approach"),
+        ros2_sender.Segment(1, 3, transition_name="grasp"),
+    ]
+
+    assert ros2_sender.execute_segments(
+        segments,
+        [np.array([0.0]), np.array([1.0]), np.array([2.0])],
+        [0.0, 1.0, 2.0],
+        joint_names=["joint"],
+        pre_actions_by_transition={
+            MockTransition("approach"): _action(calls, "pre-approach"),
+            "grasp": _action(calls, "pre-grasp"),
+        },
+        post_actions_by_transition={
+            MockTransition("grasp"): _action(calls, "post-grasp"),
+        },
+    )
+
+    assert calls == [
+        "pre-approach",
+        "trajectory",
+        "pre-grasp",
+        "trajectory",
+        "post-grasp",
+    ]
 
 
 def test_execute_segments_runs_transition_action_lists_in_order(monkeypatch):

@@ -24,13 +24,13 @@ Example:
     ]
     execute_segments(segments, configs, times, joint_names=[...])
 
-    # Or attach actions by HPP graph transition name when executing:
+    # Or attach actions by HPP graph transition name or object when executing:
     execute_segments(
         segments,
         configs,
         times,
         joint_names=[...],
-        pre_actions_by_transition={"grasp transition": gripper.close},
+        pre_actions_by_transition={grasp_transition: gripper.close},
         post_actions_by_transition={"release transition": gripper.open},
     )
 """
@@ -38,7 +38,7 @@ Example:
 import logging
 import threading
 from itertools import count
-from typing import Callable, List, Mapping, Optional, Sequence
+from typing import Callable, List, Mapping, Optional, Protocol, Sequence
 
 import numpy as np
 import rclpy
@@ -57,7 +57,15 @@ _NODE_IDS = count()
 _RCLPY_INIT_LOCK = threading.Lock()
 _TYPE_SUPPORT_LOCK = threading.Lock()
 Action = Callable[[], bool]
-TransitionActionMap = Mapping[str, Action | Sequence[Action]]
+
+
+class TransitionLike(Protocol):
+    def name(self) -> object:
+        ...
+
+
+TransitionKey = str | TransitionLike
+TransitionActionMap = Mapping[TransitionKey, Action | Sequence[Action]]
 
 
 def _ensure_rclpy_initialized() -> None:
@@ -87,8 +95,26 @@ def _action_name(action) -> str:
     )
 
 
-def _actions_for_transition(
+def _transition_name(transition: TransitionKey) -> str:
+    if isinstance(transition, str):
+        return transition
+    return str(transition.name())
+
+
+def _normalize_transition_action_map(
     actions_by_transition: TransitionActionMap | None,
+) -> dict[str, Action | Sequence[Action]]:
+    if not actions_by_transition:
+        return {}
+
+    return {
+        _transition_name(transition): actions
+        for transition, actions in actions_by_transition.items()
+    }
+
+
+def _actions_for_transition(
+    actions_by_transition: Mapping[str, Action | Sequence[Action]],
     transition_name: str,
 ) -> list[Action]:
     if not actions_by_transition:
@@ -104,7 +130,7 @@ def _actions_for_transition(
 
 def _unmatched_transition_names(
     segments: Sequence[Segment],
-    *action_maps: TransitionActionMap | None,
+    *action_maps: Mapping[str, Action | Sequence[Action]],
 ) -> set[str]:
     transition_names = {segment.transition_name for segment in segments}
     action_transition_names = {
@@ -309,15 +335,22 @@ def execute_segments(
             Default: 0..len(joint_names).
         controller_topic: FollowJointTrajectory action topic.
         pre_actions_by_transition: Optional mapping from HPP graph transition
-            names to one action or an ordered sequence of actions to run before
-            matching segments.
+            names or transition objects to one action or an ordered sequence of
+            actions to run before matching segments.
         post_actions_by_transition: Optional mapping from HPP graph transition
-            names to one action or an ordered sequence of actions to run after
-            matching segments.
+            names or transition objects to one action or an ordered sequence of
+            actions to run after matching segments.
 
     Returns:
         True if all segments and actions succeeded.
     """
+    pre_actions_by_transition = _normalize_transition_action_map(
+        pre_actions_by_transition
+    )
+    post_actions_by_transition = _normalize_transition_action_map(
+        post_actions_by_transition
+    )
+
     unmatched_transition_names = _unmatched_transition_names(
         segments,
         pre_actions_by_transition,

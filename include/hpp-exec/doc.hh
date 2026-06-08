@@ -105,8 +105,8 @@
 ///     joint_indices: list[int] | None = None,
 ///     controller_topic: str = "/joint_trajectory_controller/follow_joint_trajectory",
 ///     *,
-///     pre_actions_by_transition: dict[str, Callable | list[Callable]] | None = None,
-///     post_actions_by_transition: dict[str, Callable | list[Callable]] | None = None,
+///     pre_actions_by_transition: dict[str | Transition, Callable | list[Callable]] | None = None,
+///     post_actions_by_transition: dict[str | Transition, Callable | list[Callable]] | None = None,
 /// ) -> bool
 /// \endcode
 ///
@@ -234,7 +234,8 @@
 /// As an alternative to filling \c Segment action lists directly,
 /// \c execute_segments accepts \c pre_actions_by_transition and
 /// \c post_actions_by_transition dictionaries keyed by exact graph transition
-/// name. Each value can be one callable or an ordered list/tuple of callables.
+/// name or HPP transition object. Each value can be one callable or an ordered
+/// list/tuple of callables.
 /// Unknown transition names abort before any action or trajectory is run.
 ///
 /// \c execute_segments assumes that the \c times list already contains
@@ -276,9 +277,9 @@
 ///     joint_names=[...],
 /// )
 ///
-/// # Or leave the segments untouched and attach actions by transition name:
+/// # Or leave the segments untouched and attach actions by transition:
 /// pre_actions = {
-///     "fr3/gripper > box/handle | f_23": grasp_box,
+///     grasp_transition: grasp_box,
 /// }
 /// post_actions = {
 ///     "fr3/gripper < box/handle | 0-0_21": release_box,
